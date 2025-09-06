@@ -453,7 +453,7 @@
     <div class="main-content hidden" id="mainContent">
         <!-- Profile Header -->
         <div class="profile-header" id="profileHeader">
-            <img class="profile-pic" id="profilePic" src="https://via.placeholder.com/60x60/ff6b35/ffffff?text=U" alt="Profile" onclick="uploadProfilePicture()" style="cursor: pointer;" title="Click to change profile picture">
+            <img class="profile-pic" id="profilePic" src="/placeholder.svg" alt="Profile" onclick="uploadProfilePicture()" style="cursor: pointer;" title="Click to change profile picture">
             <div class="profile-name" id="profileName"></div>
             <!-- Added profile picture upload button -->
             <button class="upload-btn" onclick="uploadProfilePicture()" style="margin-left: auto; padding: 0.5rem 1rem; font-size: 0.9rem;">Change Photo</button>
@@ -498,9 +498,8 @@
 
     <!-- Firebase SDK -->
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
-        import { getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js';
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, where } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -516,22 +515,14 @@
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const storage = getStorage(app);
-        const db = getFirestore(app);
 
         // Global variables
         window.storage = storage;
-        window.db = db;
         window.ref = ref;
         window.uploadBytes = uploadBytes;
         window.getDownloadURL = getDownloadURL;
         window.listAll = listAll;
         window.deleteObject = deleteObject;
-        window.collection = collection;
-        window.addDoc = addDoc;
-        window.getDocs = getDocs;
-        window.query = query;
-        window.orderBy = orderBy;
-        window.where = where;
 
         window.profiles = {
             'hadil': {
@@ -545,6 +536,29 @@
         };
 
         window.currentUser = null;
+
+        // Function to extract user and timestamp from filename
+        function parseFileName(name) {
+            const parts = name.split('_');
+            if (parts.length >= 3) {
+                const user = parts[0];
+                const timestamp = parseInt(parts[1]);
+                return { user, timestamp };
+            }
+            return { user: 'unknown', timestamp: 0 };
+        }
+
+        // Function to extract title from video filename
+        function extractTitle(name) {
+            const parts = name.split('_');
+            if (parts.length >= 4) {
+                // Remove user, timestamp, and file extension
+                const titleParts = parts.slice(2);
+                const titleWithExt = titleParts.join('_');
+                return titleWithExt.replace(/\.[^/.]+$/, ""); // Remove file extension
+            }
+            return 'Untitled Video';
+        }
 
         async function loadProfilePicture(username) {
             try {
@@ -610,24 +624,14 @@
             const file = fileInput.files[0];
             const title = titleInput.value;
             const timestamp = Date.now();
-            const fileName = `videos/${window.currentUser}_${timestamp}_${file.name}`;
+            // Include title in filename for easy retrieval
+            const fileName = `videos/${window.currentUser}_${timestamp}_${title.replace(/[^a-zA-Z0-9]/g, '_')}.${file.name.split('.').pop()}`;
             
             try {
                 document.getElementById('loading').classList.remove('hidden');
                 
                 const storageRef = ref(storage, fileName);
                 await uploadBytes(storageRef, file);
-                const downloadURL = await getDownloadURL(storageRef);
-                
-                await addDoc(collection(db, 'videos'), {
-                    title: title,
-                    user: window.currentUser,
-                    timestamp: timestamp,
-                    type: 'video',
-                    fileName: fileName,
-                    downloadURL: downloadURL,
-                    createdAt: new Date()
-                });
                 
                 fileInput.value = '';
                 titleInput.value = '';
@@ -660,16 +664,6 @@
                 
                 const storageRef = ref(storage, fileName);
                 await uploadBytes(storageRef, file);
-                const downloadURL = await getDownloadURL(storageRef);
-                
-                await addDoc(collection(db, 'pictures'), {
-                    user: window.currentUser,
-                    timestamp: timestamp,
-                    type: 'picture',
-                    fileName: fileName,
-                    downloadURL: downloadURL,
-                    createdAt: new Date()
-                });
                 
                 fileInput.value = '';
                 
@@ -690,20 +684,37 @@
             document.getElementById('loading').classList.remove('hidden');
             
             try {
-                console.log('[v0] Attempting to load videos from Firestore...');
-                const q = query(
-                    collection(db, 'videos'),
-                    orderBy('timestamp', 'desc')
-                );
-                const querySnapshot = await getDocs(q);
-                console.log('[v0] Successfully loaded videos:', querySnapshot.size);
+                const videosRef = ref(storage, 'videos');
+                const videosList = await listAll(videosRef);
+                
+                // Create array with video data and sort by timestamp
+                const videos = [];
+                for (const itemRef of videosList.items) {
+                    const url = await getDownloadURL(itemRef);
+                    const fileData = parseFileName(itemRef.name);
+                    const title = extractTitle(itemRef.name);
+                    
+                    videos.push({
+                        name: itemRef.name,
+                        url: url,
+                        user: fileData.user,
+                        timestamp: fileData.timestamp,
+                        title: title
+                    });
+                }
+                
+                // Sort by timestamp (newest first)
+                videos.sort((a, b) => b.timestamp - a.timestamp);
                 
                 const mediaFeed = document.getElementById('mediaFeed');
                 mediaFeed.innerHTML = '';
                 
-                querySnapshot.forEach((doc) => {
-                    const video = doc.data();
-                    const profile = window.profiles[video.user];
+                videos.forEach((video) => {
+                    const profile = window.profiles[video.user] || { 
+                        name: video.user, 
+                        profilePic: 'https://via.placeholder.com/40x40/ff6b35/ffffff?text=' + video.user.charAt(0).toUpperCase() 
+                    };
+                    
                     const mediaItem = document.createElement('div');
                     mediaItem.className = 'media-item';
                     mediaItem.innerHTML = `
@@ -712,7 +723,8 @@
                             <div>${profile.name}</div>
                         </div>
                         <video class="media-video" controls>
-                            <source src="${video.downloadURL}" type="video/mp4">
+                            <source src="${video.url}" type="video/mp4">
+                            Your browser does not support the video tag.
                         </video>
                         <div class="media-title">${video.title}</div>
                     `;
@@ -722,7 +734,7 @@
                 
             } catch (error) {
                 console.error('Error loading videos:', error);
-                alert('Error loading videos. Please check your Firestore rules. Error: ' + error.message);
+                alert('Error loading videos: ' + error.message);
             }
             
             document.getElementById('loading').classList.add('hidden');
@@ -732,18 +744,35 @@
             document.getElementById('loading').classList.remove('hidden');
             
             try {
-                const q = query(
-                    collection(db, 'pictures'),
-                    orderBy('timestamp', 'desc')
-                );
-                const querySnapshot = await getDocs(q);
+                const picturesRef = ref(storage, 'pictures');
+                const picturesList = await listAll(picturesRef);
+                
+                // Create array with picture data and sort by timestamp
+                const pictures = [];
+                for (const itemRef of picturesList.items) {
+                    const url = await getDownloadURL(itemRef);
+                    const fileData = parseFileName(itemRef.name);
+                    
+                    pictures.push({
+                        name: itemRef.name,
+                        url: url,
+                        user: fileData.user,
+                        timestamp: fileData.timestamp
+                    });
+                }
+                
+                // Sort by timestamp (newest first)
+                pictures.sort((a, b) => b.timestamp - a.timestamp);
                 
                 const picturesGrid = document.getElementById('picturesGrid');
                 picturesGrid.innerHTML = '';
                 
-                querySnapshot.forEach((doc) => {
-                    const picture = doc.data();
-                    const profile = window.profiles[picture.user];
+                pictures.forEach((picture) => {
+                    const profile = window.profiles[picture.user] || { 
+                        name: picture.user, 
+                        profilePic: 'https://via.placeholder.com/40x40/ff6b35/ffffff?text=' + picture.user.charAt(0).toUpperCase() 
+                    };
+                    
                     const pictureCard = document.createElement('div');
                     pictureCard.className = 'picture-card';
                     pictureCard.innerHTML = `
@@ -752,7 +781,7 @@
                             <div>${profile.name}</div>
                         </div>
                         <div class="picture-container">
-                            <img class="media-image" src="${picture.downloadURL}" alt="Picture">
+                            <img class="media-image" src="${picture.url}" alt="Picture" loading="lazy">
                         </div>
                     `;
                     
@@ -761,6 +790,7 @@
                 
             } catch (error) {
                 console.error('Error loading pictures:', error);
+                alert('Error loading pictures: ' + error.message);
             }
             
             document.getElementById('loading').classList.add('hidden');
@@ -813,7 +843,7 @@
                     alert('Profile picture updated successfully!');
                 } catch (error) {
                     console.error('Profile picture upload error:', error);
-                    alert('Profile picture upload failed');
+                    alert('Profile picture upload failed: ' + error.message);
                     document.getElementById('loading').classList.add('hidden');
                 }
             };

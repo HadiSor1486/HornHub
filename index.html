@@ -500,6 +500,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -515,40 +516,61 @@
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const storage = getStorage(app);
+        const db = getFirestore(app);
 
         // Global variables
         window.storage = storage;
+        window.db = db;
         window.ref = ref;
         window.uploadBytes = uploadBytes;
         window.getDownloadURL = getDownloadURL;
         window.listAll = listAll;
         window.deleteObject = deleteObject;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.getDocs = getDocs;
+        window.query = query;
+        window.orderBy = orderBy;
+        window.where = where;
 
-        // User profiles
         window.profiles = {
             'hadil': {
                 name: 'Hadil',
-                profilePic: localStorage.getItem('hadil_profile_pic') || 'https://via.placeholder.com/60x60/ff6b35/ffffff?text=H'
+                profilePic: 'https://via.placeholder.com/60x60/ff6b35/ffffff?text=H'
             },
             'hadi': {
                 name: 'Hadi',
-                profilePic: localStorage.getItem('hadi_profile_pic') || 'https://via.placeholder.com/60x60/ff6b35/ffffff?text=H'
+                profilePic: 'https://via.placeholder.com/60x60/ff6b35/ffffff?text=H'
             }
         };
 
         window.currentUser = null;
 
+        async function loadProfilePicture(username) {
+            try {
+                const profileRef = ref(storage, `profile_pics/${username}_profile.jpg`);
+                const url = await getDownloadURL(profileRef);
+                window.profiles[username].profilePic = url;
+                return url;
+            } catch (error) {
+                console.log('No profile picture found for', username);
+                return window.profiles[username].profilePic;
+            }
+        }
+
         // Login function
-        window.login = function() {
+        window.login = async function() {
             const password = document.getElementById('passwordInput').value.toLowerCase();
             
             if (password === 'hadil' || password === 'hadi') {
                 window.currentUser = password;
                 
+                const profilePic = await loadProfilePicture(password);
+                
                 // Update profile
                 const profile = window.profiles[password];
                 document.getElementById('profileName').textContent = profile.name;
-                document.getElementById('profilePic').src = profile.profilePic;
+                document.getElementById('profilePic').src = profilePic;
                 
                 // Show main content
                 document.getElementById('loginPage').classList.add('hidden');
@@ -576,7 +598,6 @@
             }
         };
 
-        // Upload video
         window.uploadVideo = async function() {
             const fileInput = document.getElementById('videoFile');
             const titleInput = document.getElementById('videoTitle');
@@ -596,19 +617,17 @@
                 
                 const storageRef = ref(storage, fileName);
                 await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(storageRef);
                 
-                // Save metadata
-                const metadata = {
+                await addDoc(collection(db, 'media'), {
                     title: title,
                     user: window.currentUser,
                     timestamp: timestamp,
                     type: 'video',
-                    fileName: fileName
-                };
-                
-                const existingVideos = JSON.parse(localStorage.getItem('videos') || '[]');
-                existingVideos.push(metadata);
-                localStorage.setItem('videos', JSON.stringify(existingVideos));
+                    fileName: fileName,
+                    downloadURL: downloadURL,
+                    createdAt: new Date()
+                });
                 
                 // Clear form
                 fileInput.value = '';
@@ -626,7 +645,6 @@
             }
         };
 
-        // Upload picture
         window.uploadPicture = async function() {
             const fileInput = document.getElementById('pictureFile');
             
@@ -644,18 +662,16 @@
                 
                 const storageRef = ref(storage, fileName);
                 await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(storageRef);
                 
-                // Save metadata
-                const metadata = {
+                await addDoc(collection(db, 'media'), {
                     user: window.currentUser,
                     timestamp: timestamp,
                     type: 'picture',
-                    fileName: fileName
-                };
-                
-                const existingPictures = JSON.parse(localStorage.getItem('pictures') || '[]');
-                existingPictures.push(metadata);
-                localStorage.setItem('pictures', JSON.stringify(existingPictures));
+                    fileName: fileName,
+                    downloadURL: downloadURL,
+                    createdAt: new Date()
+                });
                 
                 // Clear form
                 fileInput.value = '';
@@ -674,49 +690,38 @@
             }
         };
 
-        // Load videos
         window.loadVideos = async function() {
             document.getElementById('loading').classList.remove('hidden');
             
             try {
-                const videosRef = ref(storage, 'videos/');
-                const videosList = await listAll(videosRef);
-                
-                const videos = JSON.parse(localStorage.getItem('videos') || '[]');
-                const validVideos = [];
+                const q = query(
+                    collection(db, 'media'),
+                    where('type', '==', 'video'),
+                    orderBy('timestamp', 'desc')
+                );
+                const querySnapshot = await getDocs(q);
                 
                 const mediaFeed = document.getElementById('mediaFeed');
                 mediaFeed.innerHTML = '';
                 
-                for (const video of videos) {
-                    try {
-                        const videoRef = ref(storage, video.fileName);
-                        const url = await getDownloadURL(videoRef);
-                        
-                        validVideos.push(video);
-                        
-                        const profile = window.profiles[video.user];
-                        const mediaItem = document.createElement('div');
-                        mediaItem.className = 'media-item';
-                        mediaItem.innerHTML = `
-                            <div class="media-header">
-                                <img class="media-profile-pic" src="${profile.profilePic}" alt="${profile.name}">
-                                <div>${profile.name}</div>
-                            </div>
-                            <video class="media-video" controls>
-                                <source src="${url}" type="video/mp4">
-                            </video>
-                            <div class="media-title">${video.title}</div>
-                        `;
-                        
-                        mediaFeed.appendChild(mediaItem);
-                    } catch (error) {
-                        console.log('Video not found, removing from metadata:', video.fileName);
-                    }
-                }
-                
-                // Update localStorage with valid videos only
-                localStorage.setItem('videos', JSON.stringify(validVideos));
+                querySnapshot.forEach((doc) => {
+                    const video = doc.data();
+                    const profile = window.profiles[video.user];
+                    const mediaItem = document.createElement('div');
+                    mediaItem.className = 'media-item';
+                    mediaItem.innerHTML = `
+                        <div class="media-header">
+                            <img class="media-profile-pic" src="${profile.profilePic}" alt="${profile.name}">
+                            <div>${profile.name}</div>
+                        </div>
+                        <video class="media-video" controls>
+                            <source src="${video.downloadURL}" type="video/mp4">
+                        </video>
+                        <div class="media-title">${video.title}</div>
+                    `;
+                    
+                    mediaFeed.appendChild(mediaItem);
+                });
                 
             } catch (error) {
                 console.error('Error loading videos:', error);
@@ -725,48 +730,37 @@
             document.getElementById('loading').classList.add('hidden');
         };
 
-        // Load pictures
         window.loadPictures = async function() {
             document.getElementById('loading').classList.remove('hidden');
             
             try {
-                const picturesRef = ref(storage, 'pictures/');
-                const picturesList = await listAll(picturesRef);
-                
-                const pictures = JSON.parse(localStorage.getItem('pictures') || '[]');
-                const validPictures = [];
+                const q = query(
+                    collection(db, 'media'),
+                    where('type', '==', 'picture'),
+                    orderBy('timestamp', 'desc')
+                );
+                const querySnapshot = await getDocs(q);
                 
                 const picturesGrid = document.getElementById('picturesGrid');
                 picturesGrid.innerHTML = '';
                 
-                for (const picture of pictures) {
-                    try {
-                        const pictureRef = ref(storage, picture.fileName);
-                        const url = await getDownloadURL(pictureRef);
-                        
-                        validPictures.push(picture);
-                        
-                        const profile = window.profiles[picture.user];
-                        const pictureCard = document.createElement('div');
-                        pictureCard.className = 'picture-card';
-                        pictureCard.innerHTML = `
-                            <div class="media-header">
-                                <img class="media-profile-pic" src="${profile.profilePic}" alt="${profile.name}">
-                                <div>${profile.name}</div>
-                            </div>
-                            <div class="picture-container">
-                                <img class="media-image" src="${url}" alt="Picture">
-                            </div>
-                        `;
-                        
-                        picturesGrid.appendChild(pictureCard);
-                    } catch (error) {
-                        console.log('Picture not found, removing from metadata:', picture.fileName);
-                    }
-                }
-                
-                // Update localStorage with valid pictures only
-                localStorage.setItem('pictures', JSON.stringify(validPictures));
+                querySnapshot.forEach((doc) => {
+                    const picture = doc.data();
+                    const profile = window.profiles[picture.user];
+                    const pictureCard = document.createElement('div');
+                    pictureCard.className = 'picture-card';
+                    pictureCard.innerHTML = `
+                        <div class="media-header">
+                            <img class="media-profile-pic" src="${profile.profilePic}" alt="${profile.name}">
+                            <div>${profile.name}</div>
+                        </div>
+                        <div class="picture-container">
+                            <img class="media-image" src="${picture.downloadURL}" alt="Picture">
+                        </div>
+                    `;
+                    
+                    picturesGrid.appendChild(pictureCard);
+                });
                 
             } catch (error) {
                 console.error('Error loading pictures:', error);
@@ -800,7 +794,6 @@
             }
         });
 
-        // Profile picture upload functionality
         window.uploadProfilePicture = async function() {
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
@@ -822,9 +815,6 @@
                     // Update profile picture
                     window.profiles[window.currentUser].profilePic = url;
                     document.getElementById('profilePic').src = url;
-                    
-                    // Save to localStorage
-                    localStorage.setItem(`${window.currentUser}_profile_pic`, url);
                     
                     document.getElementById('loading').classList.add('hidden');
                     alert('Profile picture updated successfully!');

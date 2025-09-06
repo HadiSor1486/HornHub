@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horn Hub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #0a0a0a, #1a1a1a, #2a1a0a, #1a1a1a);
+            background-size: 400% 400%;
+            animation: gradientShift 8s ease infinite;
+            z-index: -1;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            z-index: 1000;
+            border-bottom: 1px solid #333;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .logo .horn {
+            color: #ffffff;
+        }
+
+        .logo .hub {
+            color: #000000;
+            background: #ff6b35;
+            padding: 0 0.5rem;
+            border-radius: 8px;
+        }
+
+        /* Login Page */
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .login-box {
+            background: rgba(26, 26, 26, 0.9);
+            padding: 3rem;
+            border-radius: 20px;
+            border: 1px solid #333;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #333;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: #ff6b35;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(45deg, #ff6b35, #ff8c42);
+            border: none;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.4);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-top: 80px;
+            padding: 2rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(26, 26, 26, 0.8);
+            border-radius: 15px;
+            border: 1px solid #333;
+        }
+
+        .profile-pic {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #ff6b35;
+            cursor: pointer;
+        }
+
+        .profile-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            background: rgba(26, 26, 26, 0.8);
+            padding: 2rem;
+            border-radius: 15px;
+            border: 1px solid #333;
+            margin-bottom: 2rem;
+        }
+
+        .upload-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab-btn {
+            padding: 0.8rem 1.5rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background: #ff6b35;
+            border-color: #ff6b35;
+        }
+
+        .upload-form {
+            display: none;
+        }
+
+        .upload-form.active {
+            display: block;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px dashed #333;
+            border-radius: 10px;
+            color: #ffffff;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-input:hover {
+            border-color: #ff6b35;
+        }
+
+        .title-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .upload-btn {
+            padding: 1rem 2rem;
+            background: #ff6b35;
+            border: none;
+            border-radius: 10px;
+            color: #ffffff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            background: #ff8c42;
+            transform: translateY(-2px);
+        }
+
+        /* Media Feed */
+        .media-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .media-item {
+            background: rgba(26, 26, 26, 0.8);
+            border-radius: 15px;
+            border: 1px solid #333;
+            overflow: hidden;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .media-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .media-profile-pic {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ff6b35;
+        }
+
+        .media-content {
+            width: 100%;
+        }
+
+        .media-video {
+            width: 100%;
+            max-height: 500px;
+            background: #000;
+        }
+
+        .media-image {
+            width: 100%;
+            height: auto;
+            background: #000;
+            object-fit: contain;
+        }
+
+        .media-title {
+            padding: 1rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* Pictures Grid */
+        .pictures-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .picture-card {
+            background: rgba(26, 26, 26, 0.8);
+            border-radius: 15px;
+            border: 1px solid #333;
+            overflow: hidden;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .picture-container {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .picture-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Navigation Buttons */
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            margin: 2rem 0;
+            justify-content: center;
+        }
+
+        .nav-btn {
+            padding: 1rem 2rem;
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: #ffffff;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: #ff6b35;
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.active {
+            background: #ff6b35;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-top: 3px solid #ff6b35;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Hidden */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 1.5rem;
+            }
+            
+            .main-content {
+                padding: 1rem;
+            }
+            
+            .login-box {
+                padding: 2rem;
+            }
+            
+            .login-logo {
+                font-size: 2rem;
+            }
+            
+            .pictures-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="animated-bg"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar hidden" id="navbar">
+        <div class="logo">
+            <span class="horn">Horn</span><span class="hub">Hub</span>
+        </div>
+    </nav>
+
+    <!-- Login Page -->
+    <div class="login-container" id="loginPage">
+        <div class="login-box">
+            <div class="login-logo">
+                <span class="horn">Horn</span><span class="hub">Hub</span>
+            </div>
+            <input type="password" class="password-input" id="passwordInput" placeholder="Enter password">
+            <button class="login-btn" onclick="login()">Enter</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content hidden" id="mainContent">
+        <!-- Profile Header -->
+        <div class="profile-header" id="profileHeader">
+            <img class="profile-pic" id="profilePic" src="/placeholder.svg" alt="Profile" onclick="uploadProfilePicture()" style="cursor: pointer;" title="Click to change profile picture">
+            <div class="profile-name" id="profileName"></div>
+            <!-- Added profile picture upload button -->
+            <button class="upload-btn" onclick="uploadProfilePicture()" style="margin-left: auto; padding: 0.5rem 1rem; font-size: 0.9rem;">Change Photo</button>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <div class="upload-tabs">
+                <button class="tab-btn active" onclick="switchTab('video')">Upload Video</button>
+                <button class="tab-btn" onclick="switchTab('picture')">Upload Picture</button>
+            </div>
+            
+            <div class="upload-form active" id="videoForm">
+                <input type="file" class="file-input" id="videoFile" accept="video/*">
+                <input type="text" class="title-input" id="videoTitle" placeholder="Video title">
+                <button class="upload-btn" onclick="uploadVideo()">Upload Video</button>
+            </div>
+            
+            <div class="upload-form" id="pictureForm">
+                <input type="file" class="file-input" id="pictureFile" accept="image/*">
+                <button class="upload-btn" onclick="uploadPicture()">Upload Picture</button>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="nav-buttons">
+            <button class="nav-btn active" id="videosBtn" onclick="showVideos()">Videos</button>
+            <button class="nav-btn" id="picturesBtn" onclick="showPictures()">Pictures</button>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading hidden" id="loading">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Media Feed -->
+        <div class="media-feed" id="mediaFeed"></div>
+
+        <!-- Pictures Grid -->
+        <div class="pictures-grid hidden" id="picturesGrid"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCKOM8Tov7jcmlNgZ5EuRyat2l791hm6nM",
+            authDomain: "sorex-bcade.firebaseapp.com",
+            projectId: "sorex-bcade",
+            storageBucket: "sorex-bcade.appspot.com",
+            messagingSenderId: "428693429265",
+            appId: "1:428693429265:web:b38ab9c0f26a026cc8e5b0",
+            measurementId: "G-QCWT0DSEL6",
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const storage = getStorage(app);
+
+        // Global variables
+        window.storage = storage;
+        window.ref = ref;
+        window.uploadBytes = uploadBytes;
+        window.getDownloadURL = getDownloadURL;
+        window.listAll = listAll;
+        window.deleteObject = deleteObject;
+
+        // User profiles
+        window.profiles = {
+            'hadil': {
+                name: 'Hadil',
+                profilePic: localStorage.getItem('hadil_profile_pic') || 'https://via.placeholder.com/60x60/ff6b35/ffffff?text=H'
+            },
+            'hadi': {
+                name: 'Hadi',
+                profilePic: localStorage.getItem('hadi_profile_pic') || 'https://via.placeholder.com/60x60/ff6b35/ffffff?text=H'
+            }
+        };
+
+        window.currentUser = null;
+
+        // Login function
+        window.login = function() {
+            const password = document.getElementById('passwordInput').value.toLowerCase();
+            
+            if (password === 'hadil' || password === 'hadi') {
+                window.currentUser = password;
+                
+                // Update profile
+                const profile = window.profiles[password];
+                document.getElementById('profileName').textContent = profile.name;
+                document.getElementById('profilePic').src = profile.profilePic;
+                
+                // Show main content
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('navbar').classList.remove('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+                
+                // Load media
+                loadVideos();
+            } else {
+                alert('Invalid password');
+            }
+        };
+
+        // Tab switching
+        window.switchTab = function(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.upload-form').forEach(form => form.classList.remove('active'));
+            
+            if (tab === 'video') {
+                document.querySelector('.tab-btn').classList.add('active');
+                document.getElementById('videoForm').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('pictureForm').classList.add('active');
+            }
+        };
+
+        // Upload video
+        window.uploadVideo = async function() {
+            const fileInput = document.getElementById('videoFile');
+            const titleInput = document.getElementById('videoTitle');
+            
+            if (!fileInput.files[0] || !titleInput.value) {
+                alert('Please select a video and enter a title');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const title = titleInput.value;
+            const timestamp = Date.now();
+            const fileName = `videos/${window.currentUser}_${timestamp}_${file.name}`;
+            
+            try {
+                document.getElementById('loading').classList.remove('hidden');
+                
+                const storageRef = ref(storage, fileName);
+                await uploadBytes(storageRef, file);
+                
+                // Save metadata
+                const metadata = {
+                    title: title,
+                    user: window.currentUser,
+                    timestamp: timestamp,
+                    type: 'video',
+                    fileName: fileName
+                };
+                
+                const existingVideos = JSON.parse(localStorage.getItem('videos') || '[]');
+                existingVideos.push(metadata);
+                localStorage.setItem('videos', JSON.stringify(existingVideos));
+                
+                // Clear form
+                fileInput.value = '';
+                titleInput.value = '';
+                
+                // Reload videos
+                loadVideos();
+                
+                document.getElementById('loading').classList.add('hidden');
+                alert('Video uploaded successfully!');
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Upload failed');
+                document.getElementById('loading').classList.add('hidden');
+            }
+        };
+
+        // Upload picture
+        window.uploadPicture = async function() {
+            const fileInput = document.getElementById('pictureFile');
+            
+            if (!fileInput.files[0]) {
+                alert('Please select a picture');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const timestamp = Date.now();
+            const fileName = `pictures/${window.currentUser}_${timestamp}_${file.name}`;
+            
+            try {
+                document.getElementById('loading').classList.remove('hidden');
+                
+                const storageRef = ref(storage, fileName);
+                await uploadBytes(storageRef, file);
+                
+                // Save metadata
+                const metadata = {
+                    user: window.currentUser,
+                    timestamp: timestamp,
+                    type: 'picture',
+                    fileName: fileName
+                };
+                
+                const existingPictures = JSON.parse(localStorage.getItem('pictures') || '[]');
+                existingPictures.push(metadata);
+                localStorage.setItem('pictures', JSON.stringify(existingPictures));
+                
+                // Clear form
+                fileInput.value = '';
+                
+                // If on pictures page, reload
+                if (!document.getElementById('picturesGrid').classList.contains('hidden')) {
+                    loadPictures();
+                }
+                
+                document.getElementById('loading').classList.add('hidden');
+                alert('Picture uploaded successfully!');
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Upload failed');
+                document.getElementById('loading').classList.add('hidden');
+            }
+        };
+
+        // Load videos
+        window.loadVideos = async function() {
+            document.getElementById('loading').classList.remove('hidden');
+            
+            try {
+                const videosRef = ref(storage, 'videos/');
+                const videosList = await listAll(videosRef);
+                
+                const videos = JSON.parse(localStorage.getItem('videos') || '[]');
+                const validVideos = [];
+                
+                const mediaFeed = document.getElementById('mediaFeed');
+                mediaFeed.innerHTML = '';
+                
+                for (const video of videos) {
+                    try {
+                        const videoRef = ref(storage, video.fileName);
+                        const url = await getDownloadURL(videoRef);
+                        
+                        validVideos.push(video);
+                        
+                        const profile = window.profiles[video.user];
+                        const mediaItem = document.createElement('div');
+                        mediaItem.className = 'media-item';
+                        mediaItem.innerHTML = `
+                            <div class="media-header">
+                                <img class="media-profile-pic" src="${profile.profilePic}" alt="${profile.name}">
+                                <div>${profile.name}</div>
+                            </div>
+                            <video class="media-video" controls>
+                                <source src="${url}" type="video/mp4">
+                            </video>
+                            <div class="media-title">${video.title}</div>
+                        `;
+                        
+                        mediaFeed.appendChild(mediaItem);
+                    } catch (error) {
+                        console.log('Video not found, removing from metadata:', video.fileName);
+                    }
+                }
+                
+                // Update localStorage with valid videos only
+                localStorage.setItem('videos', JSON.stringify(validVideos));
+                
+            } catch (error) {
+                console.error('Error loading videos:', error);
+            }
+            
+            document.getElementById('loading').classList.add('hidden');
+        };
+
+        // Load pictures
+        window.loadPictures = async function() {
+            document.getElementById('loading').classList.remove('hidden');
+            
+            try {
+                const picturesRef = ref(storage, 'pictures/');
+                const picturesList = await listAll(picturesRef);
+                
+                const pictures = JSON.parse(localStorage.getItem('pictures') || '[]');
+                const validPictures = [];
+                
+                const picturesGrid = document.getElementById('picturesGrid');
+                picturesGrid.innerHTML = '';
+                
+                for (const picture of pictures) {
+                    try {
+                        const pictureRef = ref(storage, picture.fileName);
+                        const url = await getDownloadURL(pictureRef);
+                        
+                        validPictures.push(picture);
+                        
+                        const profile = window.profiles[picture.user];
+                        const pictureCard = document.createElement('div');
+                        pictureCard.className = 'picture-card';
+                        pictureCard.innerHTML = `
+                            <div class="media-header">
+                                <img class="media-profile-pic" src="${profile.profilePic}" alt="${profile.name}">
+                                <div>${profile.name}</div>
+                            </div>
+                            <div class="picture-container">
+                                <img class="media-image" src="${url}" alt="Picture">
+                            </div>
+                        `;
+                        
+                        picturesGrid.appendChild(pictureCard);
+                    } catch (error) {
+                        console.log('Picture not found, removing from metadata:', picture.fileName);
+                    }
+                }
+                
+                // Update localStorage with valid pictures only
+                localStorage.setItem('pictures', JSON.stringify(validPictures));
+                
+            } catch (error) {
+                console.error('Error loading pictures:', error);
+            }
+            
+            document.getElementById('loading').classList.add('hidden');
+        };
+
+        // Show videos
+        window.showVideos = function() {
+            document.getElementById('videosBtn').classList.add('active');
+            document.getElementById('picturesBtn').classList.remove('active');
+            document.getElementById('mediaFeed').classList.remove('hidden');
+            document.getElementById('picturesGrid').classList.add('hidden');
+            loadVideos();
+        };
+
+        // Show pictures
+        window.showPictures = function() {
+            document.getElementById('picturesBtn').classList.add('active');
+            document.getElementById('videosBtn').classList.remove('active');
+            document.getElementById('mediaFeed').classList.add('hidden');
+            document.getElementById('picturesGrid').classList.remove('hidden');
+            loadPictures();
+        };
+
+        // Enter key login
+        document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+
+        // Profile picture upload functionality
+        window.uploadProfilePicture = async function() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            
+            fileInput.onchange = async function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const fileName = `profile_pics/${window.currentUser}_profile.jpg`;
+                
+                try {
+                    document.getElementById('loading').classList.remove('hidden');
+                    
+                    const storageRef = ref(storage, fileName);
+                    await uploadBytes(storageRef, file);
+                    const url = await getDownloadURL(storageRef);
+                    
+                    // Update profile picture
+                    window.profiles[window.currentUser].profilePic = url;
+                    document.getElementById('profilePic').src = url;
+                    
+                    // Save to localStorage
+                    localStorage.setItem(`${window.currentUser}_profile_pic`, url);
+                    
+                    document.getElementById('loading').classList.add('hidden');
+                    alert('Profile picture updated successfully!');
+                } catch (error) {
+                    console.error('Profile picture upload error:', error);
+                    alert('Profile picture upload failed');
+                    document.getElementById('loading').classList.add('hidden');
+                }
+            };
+            
+            fileInput.click();
+        };
+    </script>
+</body>
+</html>

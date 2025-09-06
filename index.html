@@ -501,6 +501,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
         import { getFirestore, collection, addDoc, getDocs, query, orderBy, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -517,10 +518,12 @@
         const app = initializeApp(firebaseConfig);
         const storage = getStorage(app);
         const db = getFirestore(app);
+        const auth = getAuth(app);
 
         // Global variables
         window.storage = storage;
         window.db = db;
+        window.auth = auth;
         window.ref = ref;
         window.uploadBytes = uploadBytes;
         window.getDownloadURL = getDownloadURL;
@@ -546,6 +549,14 @@
 
         window.currentUser = null;
 
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log('[v0] User authenticated:', user.email);
+            } else {
+                console.log('[v0] User not authenticated');
+            }
+        });
+
         async function loadProfilePicture(username) {
             try {
                 const profileRef = ref(storage, `profile_pics/${username}_profile.jpg`);
@@ -558,33 +569,45 @@
             }
         }
 
-        // Login function
         window.login = async function() {
             const password = document.getElementById('passwordInput').value.toLowerCase();
             
             if (password === 'hadil' || password === 'hadi') {
-                window.currentUser = password;
-                
-                const profilePic = await loadProfilePicture(password);
-                
-                // Update profile
-                const profile = window.profiles[password];
-                document.getElementById('profileName').textContent = profile.name;
-                document.getElementById('profilePic').src = profilePic;
-                
-                // Show main content
-                document.getElementById('loginPage').classList.add('hidden');
-                document.getElementById('navbar').classList.remove('hidden');
-                document.getElementById('mainContent').classList.remove('hidden');
-                
-                // Load media
-                loadVideos();
+                try {
+                    const email = `${password}@hornhub.com`;
+                    
+                    try {
+                        await signInWithEmailAndPassword(auth, email, password);
+                    } catch (signInError) {
+                        if (signInError.code === 'auth/user-not-found') {
+                            await createUserWithEmailAndPassword(auth, email, password);
+                        } else {
+                            throw signInError;
+                        }
+                    }
+                    
+                    window.currentUser = password;
+                    
+                    const profilePic = await loadProfilePicture(password);
+                    
+                    const profile = window.profiles[password];
+                    document.getElementById('profileName').textContent = profile.name;
+                    document.getElementById('profilePic').src = profilePic;
+                    
+                    document.getElementById('loginPage').classList.add('hidden');
+                    document.getElementById('navbar').classList.remove('hidden');
+                    document.getElementById('mainContent').classList.remove('hidden');
+                    
+                    loadVideos();
+                } catch (error) {
+                    console.error('Authentication error:', error);
+                    alert('Login failed: ' + error.message);
+                }
             } else {
                 alert('Invalid password');
             }
         };
 
-        // Tab switching
         window.switchTab = function(tab) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.upload-form').forEach(form => form.classList.remove('active'));
@@ -619,9 +642,10 @@
                 await uploadBytes(storageRef, file);
                 const downloadURL = await getDownloadURL(storageRef);
                 
-                await addDoc(collection(db, 'media'), {
+                await addDoc(collection(db, 'videos'), {
                     title: title,
                     user: window.currentUser,
+                    userId: auth.currentUser.uid,
                     timestamp: timestamp,
                     type: 'video',
                     fileName: fileName,
@@ -629,18 +653,16 @@
                     createdAt: new Date()
                 });
                 
-                // Clear form
                 fileInput.value = '';
                 titleInput.value = '';
                 
-                // Reload videos
                 loadVideos();
                 
                 document.getElementById('loading').classList.add('hidden');
                 alert('Video uploaded successfully!');
             } catch (error) {
                 console.error('Upload error:', error);
-                alert('Upload failed');
+                alert('Upload failed: ' + error.message);
                 document.getElementById('loading').classList.add('hidden');
             }
         };
@@ -664,8 +686,9 @@
                 await uploadBytes(storageRef, file);
                 const downloadURL = await getDownloadURL(storageRef);
                 
-                await addDoc(collection(db, 'media'), {
+                await addDoc(collection(db, 'pictures'), {
                     user: window.currentUser,
+                    userId: auth.currentUser.uid,
                     timestamp: timestamp,
                     type: 'picture',
                     fileName: fileName,
@@ -673,10 +696,8 @@
                     createdAt: new Date()
                 });
                 
-                // Clear form
                 fileInput.value = '';
                 
-                // If on pictures page, reload
                 if (!document.getElementById('picturesGrid').classList.contains('hidden')) {
                     loadPictures();
                 }
@@ -685,7 +706,7 @@
                 alert('Picture uploaded successfully!');
             } catch (error) {
                 console.error('Upload error:', error);
-                alert('Upload failed');
+                alert('Upload failed: ' + error.message);
                 document.getElementById('loading').classList.add('hidden');
             }
         };
@@ -695,8 +716,7 @@
             
             try {
                 const q = query(
-                    collection(db, 'media'),
-                    where('type', '==', 'video'),
+                    collection(db, 'videos'),
                     orderBy('timestamp', 'desc')
                 );
                 const querySnapshot = await getDocs(q);
@@ -735,8 +755,7 @@
             
             try {
                 const q = query(
-                    collection(db, 'media'),
-                    where('type', '==', 'picture'),
+                    collection(db, 'pictures'),
                     orderBy('timestamp', 'desc')
                 );
                 const querySnapshot = await getDocs(q);
@@ -769,7 +788,6 @@
             document.getElementById('loading').classList.add('hidden');
         };
 
-        // Show videos
         window.showVideos = function() {
             document.getElementById('videosBtn').classList.add('active');
             document.getElementById('picturesBtn').classList.remove('active');
@@ -778,7 +796,6 @@
             loadVideos();
         };
 
-        // Show pictures
         window.showPictures = function() {
             document.getElementById('picturesBtn').classList.add('active');
             document.getElementById('videosBtn').classList.remove('active');
@@ -787,7 +804,6 @@
             loadPictures();
         };
 
-        // Enter key login
         document.getElementById('passwordInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 login();
@@ -812,7 +828,6 @@
                     await uploadBytes(storageRef, file);
                     const url = await getDownloadURL(storageRef);
                     
-                    // Update profile picture
                     window.profiles[window.currentUser].profilePic = url;
                     document.getElementById('profilePic').src = url;
                     

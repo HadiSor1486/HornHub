@@ -773,15 +773,15 @@
                 
                 pictures.forEach((picture) => {
                     const profile = window.profiles[picture.user] || { 
-                        name: picture.user, 
-                        profilePic: 'https://via.placeholder.com/40x40/ff6b35/ffffff?text=' + picture.user.charAt(0).toUpperCase() 
+                        name: picture.user.charAt(0).toUpperCase() + picture.user.slice(1), 
+                        profilePic: `https://via.placeholder.com/40x40/ff6b35/ffffff?text=${picture.user.charAt(0).toUpperCase()}`
                     };
                     
                     const pictureCard = document.createElement('div');
                     pictureCard.className = 'picture-card';
                     pictureCard.innerHTML = `
                         <div class="media-header">
-                            <img class="media-profile-pic" src="${profile.profilePic}" alt="${profile.name}">
+                            <img class="media-profile-pic" src="${profile.profilePic}" alt="${profile.name}" onerror="this.src='https://via.placeholder.com/40x40/ff6b35/ffffff?text=${picture.user.charAt(0).toUpperCase()}'">
                             <div>${profile.name}</div>
                         </div>
                         <div class="picture-container">
